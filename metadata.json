@@ -1,0 +1,6 @@
+{
+  "name": "Moral Mission Foundation - NGO Portal & CMS",
+  "description": "Official portal for Moral Mission Foundation (नैतिक मिशन फाउंडेशन), an Indian NGO dedicated to education, healthcare, nutrition, and social empowerment with dynamic CMS dashboard and 80G tax-exempt donations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
