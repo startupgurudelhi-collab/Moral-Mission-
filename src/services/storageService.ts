@@ -55,10 +55,21 @@ function getItem<T>(key: string, fallback: T): T {
   }
 }
 
+let syncTimeout: any = null;
+
 function setItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     notify();
+
+    // Trigger server-side persistent sync (MySQL / Server)
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => {
+      storageService.pushToServer().catch((err) => {
+        // Quiet fallback in client-only environments
+        console.debug('Background server sync status:', err);
+      });
+    }, 400);
   } catch (err) {
     console.error(`Error writing key ${key} to localStorage:`, err);
   }
@@ -70,10 +81,96 @@ export const storageService = {
     return () => listeners.delete(fn);
   },
 
+  // Pull latest data from Backend / MySQL
+  async pullFromServer(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/data');
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data) {
+        if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
+        if (data.projects) localStorage.setItem(KEYS.PROJECTS, JSON.stringify(data.projects));
+        if (data.activities) localStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(data.activities));
+        if (data.gallery) localStorage.setItem(KEYS.GALLERY, JSON.stringify(data.gallery));
+        if (data.boardMembers) localStorage.setItem(KEYS.BOARD, JSON.stringify(data.boardMembers));
+        if (data.donations) localStorage.setItem(KEYS.DONATIONS, JSON.stringify(data.donations));
+        if (data.inquiries) localStorage.setItem(KEYS.INQUIRIES, JSON.stringify(data.inquiries));
+        if (data.pageContent) localStorage.setItem(KEYS.CONTENT, JSON.stringify(data.pageContent));
+        notify();
+        return true;
+      }
+    } catch (e) {
+      // Local fallback
+    }
+    return false;
+  },
+
+  // Push all current client data to Backend / MySQL
+  async pushToServer(): Promise<boolean> {
+    try {
+      const payload = {
+        settings: this.getSettings(),
+        projects: this.getProjects(),
+        activities: this.getActivities(),
+        gallery: this.getGallery(),
+        boardMembers: this.getBoardMembers(),
+        donations: this.getDonations(),
+        inquiries: this.getInquiries(),
+        pageContent: this.getPageContent(),
+      };
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  // Check Database / MySQL Connection status from server
+  async getDbStatus(): Promise<any> {
+    try {
+      const res = await fetch('/api/db/status');
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {}
+    return {
+      mode: 'local_storage',
+      isConnectedToMysql: false,
+      message: 'Running in browser localStorage mode',
+    };
+  },
+
+  // Connect to Hostinger MySQL live from dashboard
+  async connectMysql(config: { host: string; port?: number; user: string; password?: string; database: string }): Promise<any> {
+    try {
+      const res = await fetch('/api/db/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network request failed' };
+    }
+  },
+
+  // Re-seed or create tables in MySQL
+  async initMysqlTables(): Promise<any> {
+    try {
+      const res = await fetch('/api/db/init-tables', { method: 'POST' });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, message: err.message };
+    }
+  },
+
   // Site Settings & Banners
   getSettings(): SiteSettings {
     const saved = getItem<SiteSettings>(KEYS.SETTINGS, initialSiteSettings);
-    // Ensure all banners exist in case new keys were added
     return {
       ...initialSiteSettings,
       ...saved,
@@ -236,3 +333,8 @@ export const storageService = {
     notify();
   },
 };
+
+// Initial background sync with backend / MySQL if server is running
+if (typeof window !== 'undefined') {
+  storageService.pullFromServer().catch(() => {});
+}

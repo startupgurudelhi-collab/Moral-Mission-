@@ -107,8 +107,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { label: 'Women Skill & Sewing Center', url: '/src/assets/images/ngo_women_empowerment_1792839135528.jpg' },
   ];
 
+  // MySQL Live Connection State
+  const [dbStatus, setDbStatus] = useState<any>(null);
+  const [mysqlForm, setMysqlForm] = useState({
+    host: 'localhost',
+    port: '3306',
+    user: '',
+    password: '',
+    database: '',
+  });
+  const [isConnectingMysql, setIsConnectingMysql] = useState(false);
+  const [mysqlActionMsg, setMysqlActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchDbStatus = async () => {
+    const status = await storageService.getDbStatus();
+    setDbStatus(status);
+    if (status?.host && status.host !== 'localhost') {
+      setMysqlForm((prev) => ({ ...prev, host: status.host }));
+    }
+    if (status?.database && status.database !== 'Not Configured') {
+      setMysqlForm((prev) => ({ ...prev, database: status.database }));
+    }
+    if (status?.user && status.user !== 'Not Configured') {
+      setMysqlForm((prev) => ({ ...prev, user: status.user }));
+    }
+  };
+
   // Subscribe to storage changes
   useEffect(() => {
+    fetchDbStatus();
     const unsub = storageService.subscribe(() => {
       setSettings(storageService.getSettings());
       setProjects(storageService.getProjects());
@@ -121,6 +148,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
     return unsub;
   }, []);
+
+  const handleConnectMysql = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsConnectingMysql(true);
+    setMysqlActionMsg(null);
+    try {
+      const res = await storageService.connectMysql({
+        host: mysqlForm.host,
+        port: Number(mysqlForm.port),
+        user: mysqlForm.user,
+        password: mysqlForm.password,
+        database: mysqlForm.database,
+      });
+      if (res.success) {
+        setMysqlActionMsg({ type: 'success', text: res.message });
+        await fetchDbStatus();
+        triggerToast('Connected to MySQL successfully!');
+      } else {
+        setMysqlActionMsg({ type: 'error', text: res.message });
+      }
+    } catch (err: any) {
+      setMysqlActionMsg({ type: 'error', text: err.message || 'Connection failed' });
+    } finally {
+      setIsConnectingMysql(false);
+    }
+  };
+
+  const handleInitMysqlTables = async () => {
+    setIsConnectingMysql(true);
+    try {
+      const res = await storageService.initMysqlTables();
+      if (res.success) {
+        setMysqlActionMsg({ type: 'success', text: res.message });
+        triggerToast('MySQL tables initialized & seeded!');
+      } else {
+        setMysqlActionMsg({ type: 'error', text: res.message });
+      }
+    } catch (err: any) {
+      setMysqlActionMsg({ type: 'error', text: err.message });
+    } finally {
+      setIsConnectingMysql(false);
+    }
+  };
 
   const triggerToast = (msg: string) => {
     setSaveSuccessMsg(msg);
@@ -2169,18 +2239,166 @@ interface SidebarGroup {
                 </div>
               </div>
 
+              {/* Hostinger Node.js Startup & Deployment Info Card */}
+              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-3">
+                <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+                  <ShieldCheck className="w-5 h-5 text-amber-700" />
+                  <span>Hostinger Node.js Deployment Configuration (Fixed & Ready)</span>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Your project now includes <strong className="font-mono bg-white/80 px-1 py-0.5 rounded border border-amber-300">dist/server.cjs</strong> and root <strong className="font-mono bg-white/80 px-1 py-0.5 rounded border border-amber-300">server.cjs</strong>. When configuring your application in Hostinger hPanel:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="bg-white p-3 rounded-xl border border-amber-200">
+                    <span className="text-slate-500 block">Application startup file</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">dist/server.cjs</span>
+                    <span className="text-[10px] text-slate-500 block">(or server.cjs)</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-amber-200">
+                    <span className="text-slate-500 block">Node.js Version</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">Node 18.x or 20.x</span>
+                    <span className="text-[10px] text-emerald-700 font-semibold block">Recommended</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-amber-200">
+                    <span className="text-slate-500 block">Start Command</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">npm start</span>
+                    <span className="text-[10px] text-slate-500 block">Runs node dist/server.cjs</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live MySQL Database Connection Manager */}
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-serif font-bold text-[#0f2850]">
+                      Live Hostinger MySQL Database Linker
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Connect directly to your Hostinger MySQL database instance or run with persistent local storage.
+                    </p>
+                  </div>
+                  <div>
+                    {dbStatus?.isConnectedToMysql ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                        Connected to MySQL ({dbStatus.database})
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-semibold">
+                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                        Operating in Local Storage Mode (Ready to link MySQL)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {mysqlActionMsg && (
+                  <div
+                    className={`p-3.5 rounded-xl text-xs flex items-center gap-2 border ${
+                      mysqlActionMsg.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : 'bg-red-50 text-red-800 border-red-300'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4 shrink-0" />
+                    <span>{mysqlActionMsg.text}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleConnectMysql} className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">MySQL Host</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="localhost"
+                      value={mysqlForm.host}
+                      onChange={(e) => setMysqlForm({ ...mysqlForm, host: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">MySQL Port</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="3306"
+                      value={mysqlForm.port}
+                      onChange={(e) => setMysqlForm({ ...mysqlForm, port: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">Database Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. u123456789_moraldb"
+                      value={mysqlForm.database}
+                      onChange={(e) => setMysqlForm({ ...mysqlForm, database: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">Database Username</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. u123456789_moraluser"
+                      value={mysqlForm.user}
+                      onChange={(e) => setMysqlForm({ ...mysqlForm, user: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1">Database Password</label>
+                    <input
+                      type="password"
+                      placeholder="Enter MySQL password"
+                      value={mysqlForm.password}
+                      onChange={(e) => setMysqlForm({ ...mysqlForm, password: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
+                    />
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="submit"
+                      disabled={isConnectingMysql}
+                      className="flex-1 py-2 px-3 bg-[#0f2850] hover:bg-[#163a70] text-white font-bold rounded-lg text-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isConnectingMysql ? 'Testing...' : 'Test & Connect MySQL'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleInitMysqlTables}
+                      disabled={isConnectingMysql}
+                      className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer disabled:opacity-50"
+                      title="Create all tables and seed data in MySQL"
+                    >
+                      Init Tables
+                    </button>
+                  </div>
+                </form>
+              </div>
+
               {/* Deployment Instructions for user */}
               <div className="p-5 rounded-xl bg-blue-50/60 border border-blue-200 text-blue-950 text-xs space-y-2">
                 <div className="font-bold text-sm flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-blue-700" />
-                  <span>How to Import into your MySQL / phpMyAdmin / cPanel Server:</span>
+                  <span>How to Import into your Hostinger phpMyAdmin or MySQL Database:</span>
                 </div>
                 <ol className="list-decimal list-inside space-y-1 text-slate-700">
                   <li>Click <strong>&quot;Download Full .sql Dump&quot;</strong> above to get the latest database file.</li>
-                  <li>Log in to your hosting cPanel or phpMyAdmin on your domain (e.g. Hostinger, Bluehost, AWS RDS).</li>
-                  <li>Create a database named <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200">moral_mission_db</code>.</li>
-                  <li>Go to the <strong>Import</strong> tab in phpMyAdmin, select your downloaded <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200">moral_mission_foundation_dump.sql</code>, and click <strong>Go</strong>.</li>
-                  <li>All 8 tables, site settings, 80G tax records, and projects will be instantly populated!</li>
+                  <li>Log in to your Hostinger hPanel &gt; <strong>Databases</strong> &gt; <strong>Management</strong>.</li>
+                  <li>Create a MySQL database (e.g. <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200">u123456789_moraldb</code>) and user.</li>
+                  <li>Click <strong>Enter phpMyAdmin</strong>, go to the <strong>Import</strong> tab, select the downloaded <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200">moral_mission_foundation.sql</code>, and click <strong>Go</strong>.</li>
+                  <li>All 8 relational tables and seed data will be instantly created!</li>
                 </ol>
               </div>
 
