@@ -93,6 +93,39 @@ async function startServer() {
     }
   });
 
+  // --- STATIC ASSETS & IMAGE ROUTING ---
+  // Ensure images work seamlessly across dev, SSR, and Hostinger production
+  const publicDir = path.join(process.cwd(), 'public');
+  const publicImagesDir = path.join(publicDir, 'images');
+  const srcAssetsImagesDir = path.join(process.cwd(), 'src', 'assets', 'images');
+
+  app.use('/images', express.static(publicImagesDir));
+  app.use('/images', express.static(srcAssetsImagesDir));
+  app.use('/src/assets/images', express.static(publicImagesDir));
+  app.use('/src/assets/images', express.static(srcAssetsImagesDir));
+  app.use('/public', express.static(publicDir));
+
+  // Universal image fallback handler (never serve index.html for missing images)
+  app.get(/\.(jpg|jpeg|png|gif|svg|webp|ico)$/i, (req, res) => {
+    const filename = path.basename(req.path);
+    const candidateImagePaths = [
+      path.join(publicImagesDir, filename),
+      path.join(srcAssetsImagesDir, filename),
+      path.join(process.cwd(), 'public', 'src', 'assets', 'images', filename),
+      path.join(process.cwd(), 'dist', 'images', filename),
+      path.join(process.cwd(), 'dist', 'src', 'assets', 'images', filename),
+      path.join(publicDir, filename),
+    ];
+
+    for (const candidate of candidateImagePaths) {
+      if (fs.existsSync(candidate)) {
+        return res.sendFile(candidate);
+      }
+    }
+
+    res.status(404).send('Image file not found');
+  });
+
   // Frontend Serving: Development vs Production (Hostinger)
   if (!isProduction) {
     // Development mode with Vite Middleware

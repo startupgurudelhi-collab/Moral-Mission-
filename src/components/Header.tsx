@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SiteSettings, ActivePage } from '../types';
+import { getSafeImageUrl } from '../utils/imageUtils';
 import {
   HeartHandshake,
   Menu,
@@ -90,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {settings.logoUrl ? (
               <img
-                src={settings.logoUrl}
+                src={getSafeImageUrl(settings.logoUrl)}
                 alt={settings.orgName}
                 referrerPolicy="no-referrer"
                 className="h-12 w-auto object-contain rounded"

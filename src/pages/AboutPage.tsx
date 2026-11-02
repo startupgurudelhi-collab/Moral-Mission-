@@ -1,6 +1,7 @@
 import React from 'react';
 import { SiteSettings, BoardMember, PageContent, ActivePage } from '../types';
 import { MasterBanner } from '../components/MasterBanner';
+import { getSafeImageUrl } from '../utils/imageUtils';
 import {
   ShieldCheck,
   Award,
@@ -144,7 +145,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({
                 <div className="w-24 h-24 rounded-full bg-slate-100 border-2 border-emerald-500/40 overflow-hidden mb-4 flex items-center justify-center">
                   {member.imageUrl ? (
                     <img
-                      src={member.imageUrl}
+                      src={getSafeImageUrl(member.imageUrl)}
                       alt={member.name}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"

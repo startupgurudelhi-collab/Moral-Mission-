@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SiteSettings, Project, ActivePage } from '../types';
 import { MasterBanner } from '../components/MasterBanner';
+import { getSafeImageUrl } from '../utils/imageUtils';
 import {
   HeartHandshake,
   MapPin,
@@ -86,7 +87,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 >
                   <div className="relative h-56 bg-slate-100 overflow-hidden">
                     <img
-                      src={project.imageUrl}
+                      src={getSafeImageUrl(project.imageUrl)}
                       alt={project.title}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
@@ -179,7 +180,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6">
             <div className="relative h-64 bg-slate-900">
               <img
-                src={detailProject.imageUrl}
+                src={getSafeImageUrl(detailProject.imageUrl)}
                 alt={detailProject.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

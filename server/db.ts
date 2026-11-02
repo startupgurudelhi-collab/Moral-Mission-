@@ -70,11 +70,15 @@ export function writeLocalStore(data: any): void {
 }
 
 export async function initMysql(config?: DbConfig): Promise<{ success: boolean; message: string }> {
-  const host = config?.host || process.env.MYSQL_HOST || 'localhost';
-  const port = Number(config?.port || process.env.MYSQL_PORT || 3306);
-  const user = config?.user || process.env.MYSQL_USER || process.env.DB_USER || '';
-  const password = config?.password || process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD || '';
-  const database = config?.database || process.env.MYSQL_DATABASE || process.env.DB_NAME || '';
+  // Support both MYSQL_* and DB_* environment variable names
+  let rawHost = (config?.host || process.env.MYSQL_HOST || process.env.DB_HOST || '127.0.0.1').trim();
+  // Strip http://, https://, and trailing ports or slashes if user mistakenly pasted full URL
+  rawHost = rawHost.replace(/^https?:\/\//i, '').replace(/:\d+$/, '').replace(/\/.*$/, '').trim();
+
+  const port = Number(config?.port || process.env.MYSQL_PORT || process.env.DB_PORT || 3306);
+  const user = (config?.user || process.env.MYSQL_USER || process.env.DB_USER || process.env.DB_USERNAME || '').trim();
+  const password = config?.password || process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS || '';
+  const database = (config?.database || process.env.MYSQL_DATABASE || process.env.DB_NAME || process.env.DB_DATABASE || '').trim();
 
   if (!user || !database) {
     isConnectedToMysql = false;
@@ -85,46 +89,67 @@ export async function initMysql(config?: DbConfig): Promise<{ success: boolean; 
     };
   }
 
-  try {
-    if (pool) {
-      await pool.end();
+  // Build candidate hosts to try (e.g. if user set domain instead of 127.0.0.1/localhost)
+  const candidateHosts: string[] = [];
+  if (rawHost) candidateHosts.push(rawHost);
+  if (!candidateHosts.includes('127.0.0.1')) candidateHosts.push('127.0.0.1');
+  if (!candidateHosts.includes('localhost')) candidateHosts.push('localhost');
+
+  let lastErr: any = null;
+
+  for (const hostCandidate of candidateHosts) {
+    try {
+      if (pool) {
+        await pool.end().catch(() => {});
+      }
+
+      console.log(`[MySQL] Attempting connection to ${database}@${hostCandidate}:${port} with user '${user}'...`);
+
+      const testPool = mysql.createPool({
+        host: hostCandidate,
+        port,
+        user,
+        password,
+        database,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        connectTimeout: 5000,
+      });
+
+      // Test ping
+      const connection = await testPool.getConnection();
+      await connection.ping();
+      connection.release();
+
+      // If ping succeeds, set active pool
+      pool = testPool;
+      isConnectedToMysql = true;
+      lastDbError = null;
+
+      // Ensure MySQL tables exist and seed if empty
+      await ensureMysqlTablesAndSeed();
+
+      console.log(`[MySQL Success] Connected to MySQL database '${database}' on host '${hostCandidate}:${port}'!`);
+      return {
+        success: true,
+        message: `Successfully connected to MySQL database: ${database}@${hostCandidate}:${port}`,
+      };
+    } catch (err: any) {
+      lastErr = err;
+      console.warn(`[MySQL Notice] Connection to ${hostCandidate}:${port} failed (${err.code || err.message}).`);
+      // If error is invalid password or unknown database, continuing to next host might still be needed if host was wrong,
+      // but if all candidates fail, we report the exact error.
     }
-
-    pool = mysql.createPool({
-      host,
-      port,
-      user,
-      password,
-      database,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    });
-
-    // Test ping
-    const connection = await pool.getConnection();
-    await connection.ping();
-    connection.release();
-
-    isConnectedToMysql = true;
-    lastDbError = null;
-
-    // Ensure MySQL tables exist and seed if empty
-    await ensureMysqlTablesAndSeed();
-
-    return {
-      success: true,
-      message: `Successfully connected to MySQL database: ${database}@${host}:${port}`,
-    };
-  } catch (err: any) {
-    isConnectedToMysql = false;
-    lastDbError = err.message || String(err);
-    console.warn(`[MySQL Warning] Could not connect to MySQL: ${lastDbError}. Using persistent local fallback.`);
-    return {
-      success: false,
-      message: `MySQL Connection Failed: ${lastDbError}. Local fallback active.`,
-    };
   }
+
+  isConnectedToMysql = false;
+  lastDbError = lastErr?.message || String(lastErr);
+  console.warn(`[MySQL Warning] Could not connect to MySQL: ${lastDbError}. Using persistent local fallback.`);
+  return {
+    success: false,
+    message: `MySQL Connection Failed: ${lastDbError}. Local fallback active.`,
+  };
 }
 
 export async function ensureMysqlTablesAndSeed(): Promise<void> {

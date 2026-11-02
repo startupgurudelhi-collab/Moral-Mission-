@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SiteSettings, GalleryItem, ActivePage } from '../types';
 import { MasterBanner } from '../components/MasterBanner';
+import { getSafeImageUrl } from '../utils/imageUtils';
 import {
   X,
   MapPin,
@@ -80,7 +81,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({
               >
                 <div className="relative h-64 bg-slate-900 overflow-hidden">
                   <img
-                    src={item.imageUrl}
+                    src={getSafeImageUrl(item.imageUrl)}
                     alt={item.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -133,7 +134,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({
 
             <div className="max-h-[75vh] bg-black flex items-center justify-center overflow-hidden">
               <img
-                src={activeItem.imageUrl}
+                src={getSafeImageUrl(activeItem.imageUrl)}
                 alt={activeItem.title}
                 referrerPolicy="no-referrer"
                 className="max-h-[75vh] w-auto max-w-full object-contain"

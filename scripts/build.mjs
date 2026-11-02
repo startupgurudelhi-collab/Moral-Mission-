@@ -8,6 +8,22 @@ execSync('npx vite build', { stdio: 'inherit' });
 console.log('===> [Build] Step 2: Building server with Vite SSR (preserving dist/)...');
 execSync('npx vite build --ssr server.ts --outDir dist --emptyOutDir false', { stdio: 'inherit' });
 
+console.log('===> [Build] Step 2.5: Ensuring image assets are present in dist/images and dist/src/assets/images...');
+const distImagesDir = path.join(process.cwd(), 'dist', 'images');
+const distSrcAssetsImagesDir = path.join(process.cwd(), 'dist', 'src', 'assets', 'images');
+fs.mkdirSync(distImagesDir, { recursive: true });
+fs.mkdirSync(distSrcAssetsImagesDir, { recursive: true });
+
+const srcImgDir = path.join(process.cwd(), 'src', 'assets', 'images');
+if (fs.existsSync(srcImgDir)) {
+  const files = fs.readdirSync(srcImgDir);
+  for (const file of files) {
+    const srcFile = path.join(srcImgDir, file);
+    fs.copyFileSync(srcFile, path.join(distImagesDir, file));
+    fs.copyFileSync(srcFile, path.join(distSrcAssetsImagesDir, file));
+  }
+}
+
 console.log('===> [Build] Step 3: Generating Hostinger dist/server.cjs entry file...');
 const distCjsContent = `// Universal Hostinger Entry Point for Moral Mission Foundation
 import('./server.js').catch((err) => {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { SiteSettings, Project, Activity, GalleryItem, ActivePage } from '../types';
 import { MasterBanner } from '../components/MasterBanner';
+import { getSafeImageUrl } from '../utils/imageUtils';
 import {
   HeartHandshake,
   ShieldCheck,
@@ -140,7 +141,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div className="lg:col-span-6 relative">
               <div className="relative rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-slate-900">
                 <img
-                  src="/src/assets/images/hero_ngo_education_1792839133429.jpg"
+                  src={getSafeImageUrl('/images/hero_ngo_education_1792839133429.jpg')}
                   alt="Children learning in classroom"
                   referrerPolicy="no-referrer"
                   className="w-full h-[420px] object-cover"
@@ -199,7 +200,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="relative h-52 bg-slate-100 overflow-hidden">
                     <img
-                      src={project.imageUrl}
+                      src={getSafeImageUrl(project.imageUrl)}
                       alt={project.title}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
@@ -301,7 +302,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               >
                 <div className="relative h-48 bg-slate-100 overflow-hidden">
                   <img
-                    src={act.imageUrl}
+                    src={getSafeImageUrl(act.imageUrl)}
                     alt={act.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
@@ -421,7 +422,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 className="group relative h-48 rounded-xl overflow-hidden cursor-pointer shadow-xs"
               >
                 <img
-                  src={item.imageUrl}
+                  src={getSafeImageUrl(item.imageUrl)}
                   alt={item.title}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

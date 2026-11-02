@@ -1,6 +1,7 @@
 import React from 'react';
 import { MasterBannerConfig, ActivePage } from '../types';
 import { ShieldCheck, HeartHandshake, ChevronRight } from 'lucide-react';
+import { getSafeImageUrl } from '../utils/imageUtils';
 
 interface MasterBannerProps {
   config: MasterBannerConfig;
@@ -22,7 +23,7 @@ export const MasterBanner: React.FC<MasterBannerProps> = ({
       {/* Background Photography with Scrim */}
       <div className="absolute inset-0 z-0">
         <img
-          src={config.bgImage || '/src/assets/images/hero_ngo_education_1792839133429.jpg'}
+          src={getSafeImageUrl(config.bgImage)}
           alt={config.title}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-center filter brightness-50 contrast-105 transform scale-105 transition-transform duration-1000 ease-out"

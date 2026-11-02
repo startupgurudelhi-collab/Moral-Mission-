@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Upload, Image as ImageIcon, Trash2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { getSafeImageUrl } from '../utils/imageUtils';
 
 interface ImageUploadProps {
   label?: string;
@@ -147,7 +148,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
           <div className="relative rounded-lg overflow-hidden bg-slate-900 border border-slate-200 flex items-center justify-center min-h-[140px] max-h-[220px]">
             <img
-              src={value}
+              src={getSafeImageUrl(value)}
               alt="Uploaded visual"
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain max-h-[200px]"

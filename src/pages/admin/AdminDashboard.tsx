@@ -14,6 +14,7 @@ import {
 import { storageService } from '../../services/storageService';
 import { Receipt80GModal } from '../../components/Receipt80GModal';
 import { ImageUpload } from '../../components/ImageUpload';
+import { getSafeImageUrl } from '../../utils/imageUtils';
 import {
   Lock,
   LogOut,
@@ -99,11 +100,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Preset images helper for easy selection in dashboard
   const presetPhotos = [
-    { label: 'Education Classroom', url: '/src/assets/images/hero_ngo_education_1792839133429.jpg' },
-    { label: 'Food & Ration Drive', url: '/src/assets/images/ngo_food_distribution_1792839134126.jpg' },
-    { label: 'Tree Afforestation Drive', url: '/src/assets/images/ngo_tree_plantation_1792839135677.jpg' },
-    { label: 'Free Medical Checkup Camp', url: '/src/assets/images/ngo_health_camp_1792839136060.jpg' },
-    { label: 'Women Skill & Sewing Center', url: '/src/assets/images/ngo_women_empowerment_1792839135528.jpg' },
+    { label: 'Education Classroom', url: '/images/hero_ngo_education_1792839133429.jpg' },
+    { label: 'Food & Ration Drive', url: '/images/ngo_food_distribution_1792839134126.jpg' },
+    { label: 'Tree Afforestation Drive', url: '/images/ngo_tree_plantation_1792839135677.jpg' },
+    { label: 'Free Medical Checkup Camp', url: '/images/ngo_health_camp_1792839136060.jpg' },
+    { label: 'Women Skill & Sewing Center', url: '/images/ngo_women_empowerment_1792839135528.jpg' },
   ];
 
   // Subscribe to storage changes
@@ -1435,7 +1436,7 @@ interface SidebarGroup {
                   className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex gap-4"
                 >
                   <img
-                    src={act.imageUrl}
+                    src={getSafeImageUrl(act.imageUrl)}
                     alt={act.title}
                     referrerPolicy="no-referrer"
                     className="w-24 h-24 rounded-xl object-cover shrink-0"
@@ -1612,7 +1613,7 @@ interface SidebarGroup {
                 >
                   <div className="h-36 bg-slate-100 relative">
                     <img
-                      src={item.imageUrl}
+                      src={getSafeImageUrl(item.imageUrl)}
                       alt={item.title}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"

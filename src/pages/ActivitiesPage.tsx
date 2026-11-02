@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SiteSettings, Activity, ActivePage } from '../types';
 import { MasterBanner } from '../components/MasterBanner';
+import { getSafeImageUrl } from '../utils/imageUtils';
 import {
   Calendar,
   MapPin,
@@ -59,7 +60,7 @@ export const ActivitiesPage: React.FC<ActivitiesPageProps> = ({
                 {/* Photo Column */}
                 <div className="md:col-span-5 relative h-60 md:h-full min-h-[220px] bg-slate-900">
                   <img
-                    src={act.imageUrl}
+                    src={getSafeImageUrl(act.imageUrl)}
                     alt={act.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
@@ -128,7 +129,7 @@ export const ActivitiesPage: React.FC<ActivitiesPageProps> = ({
           <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6">
             <div className="relative h-64 bg-slate-900">
               <img
-                src={selectedActivity.imageUrl}
+                src={getSafeImageUrl(selectedActivity.imageUrl)}
                 alt={selectedActivity.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
