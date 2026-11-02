@@ -5,8 +5,8 @@ import path from 'path';
 console.log('===> [Build] Step 1: Building Vite client SPA...');
 execSync('npx vite build', { stdio: 'inherit' });
 
-console.log('===> [Build] Step 2: Building server with Vite SSR...');
-execSync('npx vite build --ssr server.ts --outDir dist', { stdio: 'inherit' });
+console.log('===> [Build] Step 2: Building server with Vite SSR (preserving dist/)...');
+execSync('npx vite build --ssr server.ts --outDir dist --emptyOutDir false', { stdio: 'inherit' });
 
 console.log('===> [Build] Step 3: Generating Hostinger dist/server.cjs entry file...');
 const distCjsContent = `// Universal Hostinger Entry Point for Moral Mission Foundation
@@ -27,4 +27,15 @@ import('./dist/server.js').catch((err) => {
 `;
 fs.writeFileSync(path.join(process.cwd(), 'server.cjs'), rootCjsContent, 'utf-8');
 
-console.log('===> [Build] Success! dist/server.cjs and dist/server.js generated.');
+// Verify critical build files
+const indexPath = path.join(process.cwd(), 'dist', 'index.html');
+const serverPath = path.join(process.cwd(), 'dist', 'server.cjs');
+
+if (!fs.existsSync(indexPath)) {
+  throw new Error('BUILD FATAL ERROR: dist/index.html was not found after build!');
+}
+if (!fs.existsSync(serverPath)) {
+  throw new Error('BUILD FATAL ERROR: dist/server.cjs was not found after build!');
+}
+
+console.log('===> [Build] Success! Verified dist/index.html, dist/server.cjs, and dist/server.js all exist.');

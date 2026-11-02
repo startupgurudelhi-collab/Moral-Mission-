@@ -1,11 +1,15 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { initMysql, getDbStatus, getFullData, saveFullData, ensureMysqlTablesAndSeed } from './server/db';
 import { generateMysqlDump } from './src/services/mysqlExportService';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isProduction = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT || 3000);
@@ -104,21 +108,41 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // Production Mode (Hostinger deployment)
-    // Locate the dist folder whether running from root or from inside dist/
-    let distPath = path.join(process.cwd(), 'dist');
-    if (!fs.existsSync(distPath)) {
-      distPath = path.join(__dirname);
-    }
-    if (!fs.existsSync(distPath)) {
-      distPath = path.join(__dirname, '..', 'dist');
-    }
+    const candidateDirs = [
+      path.join(process.cwd(), 'dist'),
+      path.resolve(__dirname),
+      path.resolve(__dirname, '..', 'dist'),
+      path.resolve(__dirname, 'dist'),
+      process.cwd(),
+    ];
+
+    const distPath = candidateDirs.find((dir) => {
+      try {
+        return fs.existsSync(path.join(dir, 'index.html'));
+      } catch {
+        return false;
+      }
+    }) || path.join(process.cwd(), 'dist');
 
     console.log(`[Hostinger Production] Serving static frontend from: ${distPath}`);
 
     app.use(express.static(distPath));
 
     app.get('*', (req, res) => {
-      const indexPath = path.join(distPath, 'index.html');
+      let indexPath = path.join(distPath, 'index.html');
+      if (!fs.existsSync(indexPath)) {
+        const found = candidateDirs.map((d) => path.join(d, 'index.html')).find((p) => {
+          try {
+            return fs.existsSync(p);
+          } catch {
+            return false;
+          }
+        });
+        if (found) {
+          indexPath = found;
+        }
+      }
+
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {

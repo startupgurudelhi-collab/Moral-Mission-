@@ -12,8 +12,8 @@ import {
   MasterBannerConfig,
 } from '../../types';
 import { storageService } from '../../services/storageService';
-import { generateMysqlDump, downloadMysqlDumpFile } from '../../services/mysqlExportService';
 import { Receipt80GModal } from '../../components/Receipt80GModal';
+import { ImageUpload } from '../../components/ImageUpload';
 import {
   Lock,
   LogOut,
@@ -76,7 +76,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     | 'donations'
     | 'inquiries'
     | 'content'
-    | 'mysql'
   >('overview');
 
   // Live state
@@ -107,35 +106,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { label: 'Women Skill & Sewing Center', url: '/src/assets/images/ngo_women_empowerment_1792839135528.jpg' },
   ];
 
-  // MySQL Live Connection State
-  const [dbStatus, setDbStatus] = useState<any>(null);
-  const [mysqlForm, setMysqlForm] = useState({
-    host: 'localhost',
-    port: '3306',
-    user: '',
-    password: '',
-    database: '',
-  });
-  const [isConnectingMysql, setIsConnectingMysql] = useState(false);
-  const [mysqlActionMsg, setMysqlActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const fetchDbStatus = async () => {
-    const status = await storageService.getDbStatus();
-    setDbStatus(status);
-    if (status?.host && status.host !== 'localhost') {
-      setMysqlForm((prev) => ({ ...prev, host: status.host }));
-    }
-    if (status?.database && status.database !== 'Not Configured') {
-      setMysqlForm((prev) => ({ ...prev, database: status.database }));
-    }
-    if (status?.user && status.user !== 'Not Configured') {
-      setMysqlForm((prev) => ({ ...prev, user: status.user }));
-    }
-  };
-
   // Subscribe to storage changes
   useEffect(() => {
-    fetchDbStatus();
     const unsub = storageService.subscribe(() => {
       setSettings(storageService.getSettings());
       setProjects(storageService.getProjects());
@@ -148,49 +120,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
     return unsub;
   }, []);
-
-  const handleConnectMysql = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsConnectingMysql(true);
-    setMysqlActionMsg(null);
-    try {
-      const res = await storageService.connectMysql({
-        host: mysqlForm.host,
-        port: Number(mysqlForm.port),
-        user: mysqlForm.user,
-        password: mysqlForm.password,
-        database: mysqlForm.database,
-      });
-      if (res.success) {
-        setMysqlActionMsg({ type: 'success', text: res.message });
-        await fetchDbStatus();
-        triggerToast('Connected to MySQL successfully!');
-      } else {
-        setMysqlActionMsg({ type: 'error', text: res.message });
-      }
-    } catch (err: any) {
-      setMysqlActionMsg({ type: 'error', text: err.message || 'Connection failed' });
-    } finally {
-      setIsConnectingMysql(false);
-    }
-  };
-
-  const handleInitMysqlTables = async () => {
-    setIsConnectingMysql(true);
-    try {
-      const res = await storageService.initMysqlTables();
-      if (res.success) {
-        setMysqlActionMsg({ type: 'success', text: res.message });
-        triggerToast('MySQL tables initialized & seeded!');
-      } else {
-        setMysqlActionMsg({ type: 'error', text: res.message });
-      }
-    } catch (err: any) {
-      setMysqlActionMsg({ type: 'error', text: err.message });
-    } finally {
-      setIsConnectingMysql(false);
-    }
-  };
 
   const triggerToast = (msg: string) => {
     setSaveSuccessMsg(msg);
@@ -235,7 +164,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Lock className="w-7 h-7 text-white" />
             </div>
             <h2 className="text-2xl font-serif font-bold">Moral Mission Foundation</h2>
-            <p className="text-xs text-emerald-300 mt-1">Admin Content Management & MySQL Control</p>
+            <p className="text-xs text-emerald-300 mt-1">Admin Content Management System</p>
           </div>
 
           <div className="p-8">
@@ -319,8 +248,7 @@ type AdminTabId =
   | 'board'
   | 'donations'
   | 'inquiries'
-  | 'content'
-  | 'mysql';
+  | 'content';
 
 interface SidebarItem {
   id: AdminTabId;
@@ -369,12 +297,6 @@ interface SidebarGroup {
           countClass: newInquiriesCount > 0 ? 'bg-amber-500 text-white font-bold' : 'bg-slate-700 text-slate-300',
         },
         { id: 'content', label: 'Page Content CMS', icon: FileText },
-      ],
-    },
-    {
-      group: 'Relational Database',
-      items: [
-        { id: 'mysql', label: 'Database - MySQL', icon: Database, badge: '.sql' },
       ],
     },
   ];
@@ -427,7 +349,7 @@ interface SidebarGroup {
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider">
-                    Admin CMS & MySQL
+                    Admin CMS Portal
                   </span>
                 </div>
               </div>
@@ -503,7 +425,7 @@ interface SidebarGroup {
         <div className="p-4 border-t border-white/10 bg-[#08152b] space-y-2">
           <button
             onClick={() => onNavigate('home')}
-            className="w-full flex items-center justify-between px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-medium transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-medium transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
@@ -513,19 +435,8 @@ interface SidebarGroup {
           </button>
 
           <button
-            onClick={downloadMysqlDumpFile}
-            className="w-full flex items-center justify-between px-3.5 py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Database className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Export MySQL .sql</span>
-            </div>
-            <Download className="w-3 h-3 text-emerald-300" />
-          </button>
-
-          <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3.5 py-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-red-200 text-xs font-medium transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-red-200 text-xs font-medium transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5 text-red-400" />
             <span>Sign Out Admin</span>
@@ -567,19 +478,10 @@ interface SidebarGroup {
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => onNavigate('home')}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
               <span>Live Website</span>
-            </button>
-
-            <button
-              onClick={downloadMysqlDumpFile}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export MySQL</span>
-              <span className="sm:hidden">.sql</span>
             </button>
 
             <button
@@ -647,7 +549,7 @@ interface SidebarGroup {
                 Quick Administration Controls
               </h3>
               <p className="text-xs text-slate-600 mb-6">
-                All updates made in this dashboard immediately reflect on the frontend website and are synchronized to your MySQL schema generator.
+                All updates made in this dashboard immediately reflect on the public website in real-time.
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-semibold">
@@ -679,12 +581,12 @@ interface SidebarGroup {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('mysql')}
+                  onClick={() => setActiveTab('gallery')}
                   className="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 border border-slate-200 text-left transition-colors cursor-pointer"
                 >
-                  <Database className="w-5 h-5 text-emerald-700 mb-2" />
-                  <div>MySQL Database Tools</div>
-                  <span className="text-[11px] font-normal text-slate-500">Export SQL schema & data</span>
+                  <ImageIcon className="w-5 h-5 text-emerald-700 mb-2" />
+                  <div>Photo Gallery Media</div>
+                  <span className="text-[11px] font-normal text-slate-500">Upload & organize photos</span>
                 </button>
               </div>
             </div>
@@ -776,15 +678,11 @@ interface SidebarGroup {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs text-slate-600 mb-1">
-                      Header Logo URL (Leave empty to use the official Indian SVG emblem)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://example.com/logo.png"
+                    <ImageUpload
+                      label="Header Organization Logo (Upload PNG/SVG/JPG)"
                       value={settings.logoUrl}
-                      onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"
+                      onChange={(url) => setSettings({ ...settings, logoUrl: url })}
+                      helperText="Upload transparent PNG, SVG or JPG. Leave empty to use official Indian Ashok Chakra emblem."
                     />
                   </div>
                 </div>
@@ -1095,48 +993,22 @@ interface SidebarGroup {
                         </div>
 
                         <div>
-                          <label className="block text-slate-600 font-semibold mb-1">
-                            Background Image URL or Pick Preset
-                          </label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={banner.bgImage}
-                              onChange={(e) => {
-                                const updated = {
+                          <ImageUpload
+                            label="Banner Background Photo (Upload File)"
+                            value={banner.bgImage}
+                            onChange={(url) => {
+                              const updated = {
                                 ...settings,
                                 banners: {
                                   ...settings.banners,
-                                  [pageKey]: { ...banner, bgImage: e.target.value },
+                                  [pageKey]: { ...banner, bgImage: url },
                                 },
                               };
                               setSettings(updated);
                             }}
-                            className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono"
+                            presets={presetPhotos}
+                            helperText="Upload custom landscape hero photo or select from NGO library"
                           />
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {presetPhotos.map((p, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => {
-                                  const updated = {
-                                    ...settings,
-                                    banners: {
-                                      ...settings.banners,
-                                      [pageKey]: { ...banner, bgImage: p.url },
-                                    },
-                                  };
-                                  setSettings(updated);
-                                }}
-                                className="px-2 py-0.5 rounded bg-white hover:bg-emerald-100 text-[10px] text-slate-700 border border-slate-200 cursor-pointer"
-                              >
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -1306,25 +1178,13 @@ interface SidebarGroup {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-slate-700 font-semibold mb-1">Image URL</label>
-                    <input
-                      type="text"
+                    <ImageUpload
+                      label="Project Cover Photo (Upload File)"
                       value={editingProject.imageUrl}
-                      onChange={(e) => setEditingProject({ ...editingProject, imageUrl: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs"
+                      onChange={(url) => setEditingProject({ ...editingProject, imageUrl: url })}
+                      presets={presetPhotos}
+                      helperText="Upload photo from device (JPG, PNG, WEBP) or pick from NGO library"
                     />
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {presetPhotos.map((p, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setEditingProject({ ...editingProject, imageUrl: p.url })}
-                          className="px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-100 text-[10px] text-slate-700 border border-slate-200"
-                        >
-                          Use {p.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -1535,25 +1395,13 @@ interface SidebarGroup {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-slate-700 font-semibold mb-1">Image URL</label>
-                    <input
-                      type="text"
+                    <ImageUpload
+                      label="Activity Field Photo (Upload File)"
                       value={editingActivity.imageUrl}
-                      onChange={(e) => setEditingActivity({ ...editingActivity, imageUrl: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs"
+                      onChange={(url) => setEditingActivity({ ...editingActivity, imageUrl: url })}
+                      presets={presetPhotos}
+                      helperText="Upload event photo or select from pre-approved gallery"
                     />
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {presetPhotos.map((p, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setEditingActivity({ ...editingActivity, imageUrl: p.url })}
-                          className="px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-100 text-[10px] text-slate-700 border border-slate-200"
-                        >
-                          Use {p.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -1723,25 +1571,13 @@ interface SidebarGroup {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-slate-700 font-semibold mb-1">Image URL</label>
-                    <input
-                      type="text"
+                    <ImageUpload
+                      label="Photograph File (Upload Photo from Device)"
                       value={editingGallery.imageUrl}
-                      onChange={(e) => setEditingGallery({ ...editingGallery, imageUrl: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs"
+                      onChange={(url) => setEditingGallery({ ...editingGallery, imageUrl: url })}
+                      presets={presetPhotos}
+                      helperText="Click to upload photograph from computer/phone or pick from NGO library"
                     />
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {presetPhotos.map((p, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setEditingGallery({ ...editingGallery, imageUrl: p.url })}
-                          className="px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-100 text-[10px] text-slate-700 border border-slate-200"
-                        >
-                          Use {p.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -1900,12 +1736,11 @@ interface SidebarGroup {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-slate-700 font-semibold mb-1">Photo URL (Optional)</label>
-                    <input
-                      type="text"
+                    <ImageUpload
+                      label="Trustee Portrait Photo (Upload File)"
                       value={editingBoard.imageUrl}
-                      onChange={(e) => setEditingBoard({ ...editingBoard, imageUrl: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs"
+                      onChange={(url) => setEditingBoard({ ...editingBoard, imageUrl: url })}
+                      helperText="Square or portrait photo of trustee"
                     />
                   </div>
                 </div>
@@ -2178,251 +2013,6 @@ interface SidebarGroup {
                   onChange={(e) => setPageContent({ ...pageContent, refundContent: e.target.value })}
                   className="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs leading-relaxed"
                 />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================== */}
-        {/* TAB 11: DATABASE - MYSQL TOOLS */}
-        {/* ========================================================== */}
-        {activeTab === 'mysql' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-900 flex items-center justify-center">
-                    <Database className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-serif font-bold text-[#0f2850]">
-                      MySQL Database Hub & Exporter
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Production MySQL 8.0 / MariaDB schema and live data dump export.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={downloadMysqlDumpFile}
-                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md shrink-0"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Full .sql Dump</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Database Name</span>
-                  <span className="font-mono font-bold text-sm text-[#0f2850] mt-1 block">
-                    moral_mission_db
-                  </span>
-                  <span className="text-[10px] text-slate-500">utf8mb4_unicode_ci</span>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Database Engine</span>
-                  <span className="font-mono font-bold text-sm text-emerald-800 mt-1 block">
-                    InnoDB (ACID Compliant)
-                  </span>
-                  <span className="text-[10px] text-slate-500">Foreign Keys & Transactions</span>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block">Tables Created</span>
-                  <span className="font-mono font-bold text-sm text-[#0f2850] mt-1 block">
-                    8 Relational Tables
-                  </span>
-                  <span className="text-[10px] text-slate-500">Projects, Donations, Inquiries...</span>
-                </div>
-              </div>
-
-              {/* Hostinger Node.js Startup & Deployment Info Card */}
-              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-3">
-                <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
-                  <ShieldCheck className="w-5 h-5 text-amber-700" />
-                  <span>Hostinger Node.js Deployment Configuration (Fixed & Ready)</span>
-                </div>
-                <p className="text-xs text-amber-900 leading-relaxed">
-                  Your project now includes <strong className="font-mono bg-white/80 px-1 py-0.5 rounded border border-amber-300">dist/server.cjs</strong> and root <strong className="font-mono bg-white/80 px-1 py-0.5 rounded border border-amber-300">server.cjs</strong>. When configuring your application in Hostinger hPanel:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="bg-white p-3 rounded-xl border border-amber-200">
-                    <span className="text-slate-500 block">Application startup file</span>
-                    <span className="font-mono font-bold text-slate-900 text-sm">dist/server.cjs</span>
-                    <span className="text-[10px] text-slate-500 block">(or server.cjs)</span>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-amber-200">
-                    <span className="text-slate-500 block">Node.js Version</span>
-                    <span className="font-mono font-bold text-slate-900 text-sm">Node 18.x or 20.x</span>
-                    <span className="text-[10px] text-emerald-700 font-semibold block">Recommended</span>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-amber-200">
-                    <span className="text-slate-500 block">Start Command</span>
-                    <span className="font-mono font-bold text-slate-900 text-sm">npm start</span>
-                    <span className="text-[10px] text-slate-500 block">Runs node dist/server.cjs</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Live MySQL Database Connection Manager */}
-              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-base font-serif font-bold text-[#0f2850]">
-                      Live Hostinger MySQL Database Linker
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Connect directly to your Hostinger MySQL database instance or run with persistent local storage.
-                    </p>
-                  </div>
-                  <div>
-                    {dbStatus?.isConnectedToMysql ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold">
-                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                        Connected to MySQL ({dbStatus.database})
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-xs font-semibold">
-                        <span className="w-2 h-2 rounded-full bg-blue-500" />
-                        Operating in Local Storage Mode (Ready to link MySQL)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {mysqlActionMsg && (
-                  <div
-                    className={`p-3.5 rounded-xl text-xs flex items-center gap-2 border ${
-                      mysqlActionMsg.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                        : 'bg-red-50 text-red-800 border-red-300'
-                    }`}
-                  >
-                    <ShieldCheck className="w-4 h-4 shrink-0" />
-                    <span>{mysqlActionMsg.text}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleConnectMysql} className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">MySQL Host</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="localhost"
-                      value={mysqlForm.host}
-                      onChange={(e) => setMysqlForm({ ...mysqlForm, host: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">MySQL Port</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="3306"
-                      value={mysqlForm.port}
-                      onChange={(e) => setMysqlForm({ ...mysqlForm, port: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Database Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. u123456789_moraldb"
-                      value={mysqlForm.database}
-                      onChange={(e) => setMysqlForm({ ...mysqlForm, database: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Database Username</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. u123456789_moraluser"
-                      value={mysqlForm.user}
-                      onChange={(e) => setMysqlForm({ ...mysqlForm, user: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-semibold mb-1">Database Password</label>
-                    <input
-                      type="password"
-                      placeholder="Enter MySQL password"
-                      value={mysqlForm.password}
-                      onChange={(e) => setMysqlForm({ ...mysqlForm, password: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white font-mono text-xs"
-                    />
-                  </div>
-
-                  <div className="flex items-end gap-2">
-                    <button
-                      type="submit"
-                      disabled={isConnectingMysql}
-                      className="flex-1 py-2 px-3 bg-[#0f2850] hover:bg-[#163a70] text-white font-bold rounded-lg text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {isConnectingMysql ? 'Testing...' : 'Test & Connect MySQL'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleInitMysqlTables}
-                      disabled={isConnectingMysql}
-                      className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer disabled:opacity-50"
-                      title="Create all tables and seed data in MySQL"
-                    >
-                      Init Tables
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Deployment Instructions for user */}
-              <div className="p-5 rounded-xl bg-blue-50/60 border border-blue-200 text-blue-950 text-xs space-y-2">
-                <div className="font-bold text-sm flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-blue-700" />
-                  <span>How to Import into your Hostinger phpMyAdmin or MySQL Database:</span>
-                </div>
-                <ol className="list-decimal list-inside space-y-1 text-slate-700">
-                  <li>Click <strong>&quot;Download Full .sql Dump&quot;</strong> above to get the latest database file.</li>
-                  <li>Log in to your Hostinger hPanel &gt; <strong>Databases</strong> &gt; <strong>Management</strong>.</li>
-                  <li>Create a MySQL database (e.g. <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200">u123456789_moraldb</code>) and user.</li>
-                  <li>Click <strong>Enter phpMyAdmin</strong>, go to the <strong>Import</strong> tab, select the downloaded <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200">moral_mission_foundation.sql</code>, and click <strong>Go</strong>.</li>
-                  <li>All 8 relational tables and seed data will be instantly created!</li>
-                </ol>
-              </div>
-
-              {/* Live SQL Preview */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    Live SQL Dump Preview (Real-Time Generated)
-                  </span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generateMysqlDump());
-                      triggerToast('SQL script copied to clipboard');
-                    }}
-                    className="text-xs text-emerald-700 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy SQL to Clipboard</span>
-                  </button>
-                </div>
-
-                <pre className="p-4 rounded-xl bg-slate-900 text-emerald-400 font-mono text-[11px] leading-relaxed max-h-96 overflow-y-auto overflow-x-auto border border-slate-800">
-                  {generateMysqlDump()}
-                </pre>
               </div>
             </div>
           </div>
